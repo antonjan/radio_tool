@@ -19,6 +19,7 @@
 
 #include <radio_tool/fw/fw.hpp>
 #include <radio_tool/fw/tyt_fw.hpp>
+#include <radio_tool/fw/tyt_fw_sgl.hpp>
 #include <radio_tool/fw/cs_fw.hpp>
 
 #include <string>
@@ -50,6 +51,7 @@ namespace radio_tool::fw
      */
     const std::vector<FirmwareSupportTest> AllFirmwareHandlers = {
         FirmwareSupportTest(TYTFW::SupportsFirmwareFile, TYTFW::SupportsRadioModel, TYTFW::Create),
+        FirmwareSupportTest(TYTSGLFW::SupportsFirmwareFile, TYTSGLFW::SupportsRadioModel, TYTSGLFW::Create),
         FirmwareSupportTest(CSFW::SupportsFirmwareFile, CSFW::SupportsRadioModel, CSFW::Create)
     };
 

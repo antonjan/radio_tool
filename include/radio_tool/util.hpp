@@ -24,9 +24,22 @@
 #include <chrono>
 #include <algorithm>
 #include <iterator>
+#include <iomanip>
 
 namespace radio_tool
 {
+    constexpr auto kiB = (1UL << 10);
+
+    constexpr auto MiB = (1UL << 20);
+
+    constexpr auto GiB = (1UL << 30);
+
+    constexpr auto TiB = (1UL << 40);
+
+    constexpr auto PiB = (1UL << 50);
+
+    constexpr auto EiB = (1UL << 60);
+
     static auto PrintHex(std::vector<uint8_t>::const_iterator &&begin, std::vector<uint8_t>::const_iterator &&end) -> void
     {
         auto c = 1u;
@@ -41,7 +54,7 @@ namespace radio_tool
         char aV, bV;
         std::stringstream prnt;
         auto size = std::distance(begin, end);
-        while(begin != end)
+        while (begin != end)
         {
             auto v = (*begin);
             auto a = v & 0x0f;
@@ -111,20 +124,20 @@ namespace radio_tool
         };
     }
 
-    static inline auto ApplyXOR(std::vector<uint8_t> &data, const uint8_t *xor_key, const uint16_t &key_len) -> void
+    static inline auto ApplyXOR(std::vector<uint8_t> &data, const uint8_t *xor_key, const uint16_t &key_len, const uint16_t &xor_offset = 0) -> void
     {
         for (auto z = 0; z < data.size(); z++)
         {
-            data[z] = data[z] ^ xor_key[z % key_len];
+            data[z] = data[z] ^ xor_key[(xor_offset + z) % key_len];
         }
     }
 
-    static inline auto ApplyXOR(std::vector<uint8_t>::iterator &&begin, std::vector<uint8_t>::iterator &&end, const uint8_t *xor_key, const uint16_t &key_len) -> void
+    static inline auto ApplyXOR(std::vector<uint8_t>::iterator &&begin, std::vector<uint8_t>::iterator &&end, const uint8_t *xor_key, const uint16_t &key_len, const uint16_t &xor_offset = 0) -> void
     {
         auto z = 0;
-        while(begin != end)
+        while (begin != end)
         {
-            (*begin) = (*begin) ^ xor_key[z++ % key_len];
+            (*begin) = (*begin) ^ xor_key[(xor_offset + z++) % key_len];
             std::advance(begin, 1);
         }
     }
@@ -172,8 +185,8 @@ namespace radio_tool
 
     static auto InternetChecksum(std::vector<uint8_t>::iterator &data, const uint32_t &size) -> uint16_t
     {
-        int32_t sum = 0, 
-            count = size;
+        int32_t sum = 0,
+                count = size;
 
         // Main summing loop
         while (count > 1)
@@ -205,14 +218,45 @@ namespace radio_tool
     {
         uint16_t sum = 0;
 
-        while(begin != end)
+        while (begin != end)
         {
             sum += (*begin);
             std::advance(begin, 1);
         }
 
         auto c0 = (int32_t)(sum / 5) >> 8;
-	    auto c1 = (sum / 5) & 0xff;
+        auto c1 = (sum / 5) & 0xff;
         return (c1 << 8 | c0);
+    }
+
+    static auto FormatBytes(const uint64_t &bytes, const uint8_t &precision = 2) -> std::string
+    {
+        std::stringstream ss;
+        ss << std::fixed << std::setprecision(precision);
+        if (bytes >= EiB)
+        {
+            ss << (bytes / (double)EiB) << " EiB";
+        }
+        else if (bytes >= PiB)
+        {
+            ss << (bytes / (double)PiB) << " PiB";
+        }
+        else if (bytes >= TiB)
+        {
+            ss << (bytes / (double)TiB) << " TiB";
+        }
+        else if (bytes >= GiB)
+        {
+            ss << (bytes / (double)GiB) << " GiB";
+        }
+        else if (bytes >= kiB)
+        {
+            ss << (bytes / (double)kiB) << " kiB";
+        }
+        else
+        {
+            ss << bytes << " B";
+        }
+        return ss.str();
     }
 } // namespace radio_tool

@@ -2,3 +2,6 @@ build/
 .vscode/
 *.bin
 .DS_Store
+test/bin2sgl
+test/random*
+Testing/Temporary

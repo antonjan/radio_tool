@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.0)
-project(radio_tool VERSION 0.1.0)
+project(radio_tool VERSION 0.2.0)
 
 option(BUILD_TESTING "Enable tests" OFF)
 
@@ -54,6 +54,7 @@ set(ALL_SRC
     src/tyt_radio.cpp
     src/tyt_dfu.cpp
     src/tyt_fw.cpp
+    src/tyt_fw_sgl.cpp
     src/cs_fw.cpp
     src/rdt.cpp
     "${CMAKE_CURRENT_BINARY_DIR}/src/version.cpp"

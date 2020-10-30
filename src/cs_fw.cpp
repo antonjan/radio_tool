@@ -119,7 +119,7 @@ auto CSFW::ToString() const -> std::string
     std::stringstream out;
 
     out << "== Connect Systems Firmware ==" << std::endl
-        << "Image Size: " << std::fixed << std::setprecision(2) << (header.imagesize / 1024.0) << " KiB" << std::endl
+        << "Image Size: " << FormatBytes(header.imagesize) << std::endl
         << "Version:    " << header.version << std::endl
         << "Checksum:   0x" << std::setw(4) << std::setfill('0') << std::hex << checksum << std::endl
         << "Data Segments: " << std::endl;
