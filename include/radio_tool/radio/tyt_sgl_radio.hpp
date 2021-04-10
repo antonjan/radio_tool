@@ -1,6 +1,6 @@
 /**
  * This file is part of radio_tool.
- * Copyright (c) 2020 Kieran Harkin <kieran+git@harkin.me>
+ * Copyright (c) 2021 Kieran Harkin <kieran+git@harkin.me>
  * 
  * radio_tool is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,44 +18,37 @@
 #pragma once
 
 #include <radio_tool/radio/radio.hpp>
-#include <radio_tool/dfu/tyt_dfu.hpp>
+#include <radio_tool/hid/tyt_hid.hpp>
 
 #include <functional>
 
 namespace radio_tool::radio
 {
     class RadioFactory;
-    class TYTRadio : public RadioSupport
+    class TYTSGLRadio : public RadioSupport
     {
     public:
-        TYTRadio(libusb_device_handle* h)
-            : dfu(h) { }
+        TYTSGLRadio(RadioFactory *f, libusb_device_handle *h);
 
         auto WriteFirmware(const std::string &file) -> void override;
         auto ToString() -> const std::string override;
 
         static auto SupportsDevice(const libusb_device_descriptor &dev) -> bool
         {
-            if (dev.idVendor == dfu::TYTDFU::VID && dev.idProduct == dfu::TYTDFU::PID)
+            if (dev.idVendor == hid::TYTHID::VID && dev.idProduct == hid::TYTHID::PID)
             {
                 return true;
             }
             return false;
         }
 
-        /**
-         * Get the handler used to communicate with this device
-         */
-        auto GetDFU() const -> const dfu::TYTDFU&
+        static auto Create(RadioFactory *f, libusb_device_handle *h) -> std::unique_ptr<TYTSGLRadio>
         {
-            return dfu;
+            return std::unique_ptr<TYTSGLRadio>(new TYTSGLRadio(f, h));
         }
 
-        static auto Create(RadioFactory *f, libusb_device_handle* h) -> std::unique_ptr<TYTRadio> {
-            return std::unique_ptr<TYTRadio>(new TYTRadio(h));
-        }
     private:
         uint16_t dev_index;
-        const dfu::TYTDFU dfu;
+        hid::TYTHID device;
     };
 } // namespace radio_tool::radio

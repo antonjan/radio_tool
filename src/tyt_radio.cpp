@@ -26,7 +26,7 @@
 
 using namespace radio_tool::radio;
 
-auto TYTRadio::ToString() const -> const std::string
+auto TYTRadio::ToString() -> const std::string
 {
     std::stringstream out;
 
@@ -40,7 +40,7 @@ auto TYTRadio::ToString() const -> const std::string
     return out.str();
 }
 
-auto TYTRadio::WriteFirmware(const std::string &file) const -> void
+auto TYTRadio::WriteFirmware(const std::string &file) -> void
 {
     constexpr auto TransferSize = 1024u;
 

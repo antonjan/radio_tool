@@ -19,25 +19,20 @@
 
 #include <radio_tool/radio/radio.hpp>
 #include <radio_tool/radio/tyt_radio.hpp>
+#include <radio_tool/radio/tyt_sgl_radio.hpp>
 #include <libusb-1.0/libusb.h>
 
 #include <iostream>
 #include <memory>
 #include <functional>
+#include <thread>
 
 namespace radio_tool::radio
 {
-    /**
-     * A list of functions to test each radio handler
-     */
-    const std::vector<std::pair<std::function<bool(const libusb_device_descriptor &)>, std::function<std::unique_ptr<RadioSupport>(libusb_device_handle *)>>> RadioSupports = {
-        {TYTRadio::SupportsDevice, TYTRadio::Create}
-    };
-
     class RadioFactory
     {
     public:
-        RadioFactory() : usb_ctx(nullptr)
+        RadioFactory() : usb_ctx(nullptr), shutdown(false)
         {
             auto err = libusb_init(&usb_ctx);
             if (err != LIBUSB_SUCCESS)
@@ -62,7 +57,7 @@ namespace radio_tool::radio
         /**
          * Return the radio support handler for a specified usb device
          */
-        auto GetRadioSupport(const uint16_t &idx) const -> std::unique_ptr<RadioSupport>;
+        auto GetRadioSupport(const uint16_t &idx) -> std::unique_ptr<RadioSupport>;
 
         /**
          * Gets info about currently supported devices
@@ -85,9 +80,18 @@ namespace radio_tool::radio
 
             return ret;
         }
+
+        auto SetupAsyncIO(libusb_device_handle *handle) -> void 
+        {
+            events = std::thread(&RadioFactory::HandleEvents, this);
+        }
     private:
         auto OpDeviceList(std::function<void(const libusb_device *, const libusb_device_descriptor &, const uint16_t &)>) const -> void;
 
         libusb_context *usb_ctx;
+        std::thread events;
+        bool shutdown;
+        
+        auto HandleEvents() const -> void;
     };
 } // namespace radio_tool::radio

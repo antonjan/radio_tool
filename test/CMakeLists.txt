@@ -110,3 +110,16 @@ AddFirmwareTest(RT3S_REC__D16.06.bin "UV3X0")
 #CS800
 AddFirmwareTest(CS800D_Host_MS.30.14_Use_Flashburn3.0_Upgrade.bin "CS800")
 AddFirmwareTest(TEST_CS800_4000__Mobile_M100000_Host_S3.02.07_Auth_Test_Ver_1_.bin "CS800")
+
+#DM-1801
+AddFirmwareTest(DM_1801_V2.1.9.sgl "DM1801")
+
+#GD-77
+AddFirmwareTest(GD_77_V4.3.3.sgl "GD77")
+
+#GD-77s
+AddFirmwareTest(GD_77S_V1.2.0.sgl "GD77S")
+AddFirmwareTest(GD_77S_V1.3.0.sgl "GD77S")
+
+#RD-5R
+AddFirmwareTest(BF_5R_V2.1.6.sgl "RD5R")

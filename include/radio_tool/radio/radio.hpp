@@ -54,19 +54,14 @@ namespace radio_tool::radio
         /**
          * Write a firmware file to the device (Firmware Upgrade)
          */
-        virtual auto WriteFirmware(const std::string &file) const -> void = 0;
+        virtual auto WriteFirmware(const std::string &file) -> void = 0;
         
         //virtual auto WriteCodeplug();
         //virtual auto ReadCodeplug();
 
         /**
-         * Return the device communication handler
-         */
-        virtual auto GetDFU() const -> const dfu::DFU& = 0;
-
-        /**
          * Get general info about the radio
          */
-        virtual auto ToString() const -> const std::string = 0;
+        virtual auto ToString() -> const std::string = 0;
     };
 } // namespace radio_tool::radio

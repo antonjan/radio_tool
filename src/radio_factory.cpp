@@ -25,7 +25,14 @@
 
 using namespace radio_tool::radio;
 
-auto RadioFactory::GetRadioSupport(const uint16_t &dev_idx) const -> std::unique_ptr<RadioSupport>
+/**
+ * A list of functions to test each radio handler
+ */
+const std::vector<std::pair<std::function<bool(const libusb_device_descriptor &)>, std::function<std::unique_ptr<RadioSupport>(RadioFactory *, libusb_device_handle *)>>> RadioSupports = {
+    {TYTRadio::SupportsDevice, TYTRadio::Create},
+    {TYTSGLRadio::SupportsDevice, TYTSGLRadio::Create}};
+
+auto RadioFactory::GetRadioSupport(const uint16_t &dev_idx) -> std::unique_ptr<RadioSupport>
 {
     libusb_device **devs;
     auto ndev = libusb_get_device_list(usb_ctx, &devs);
@@ -36,7 +43,8 @@ auto RadioFactory::GetRadioSupport(const uint16_t &dev_idx) const -> std::unique
     {
         for (auto x = 0; x < ndev; x++)
         {
-            libusb_device_descriptor desc;
+            struct libusb_device_descriptor desc;
+            libusb_config_descriptor *conf_desc = NULL;
             if (LIBUSB_SUCCESS == (err = libusb_get_device_descriptor(devs[x], &desc)))
             {
                 for (const auto &fnSupport : RadioSupports)
@@ -48,8 +56,31 @@ auto RadioFactory::GetRadioSupport(const uint16_t &dev_idx) const -> std::unique
                             libusb_device_handle *h;
                             if (LIBUSB_SUCCESS == (err = libusb_open(devs[x], &h)))
                             {
+                                //setup for HID device
+                                if (libusb_get_active_config_descriptor(devs[x], &conf_desc) == LIBUSB_SUCCESS)
+                                {
+                                    for (auto iface = 0; iface < conf_desc->bNumInterfaces; iface++)
+                                    {
+                                        auto intf = &conf_desc->interface[iface];
+                                        for (auto alt = 0; alt < intf->num_altsetting; alt++)
+                                        {
+                                            auto intf_desc = &intf->altsetting[alt];
+                                            if (intf_desc->bInterfaceClass == LIBUSB_CLASS_HID)
+                                            {
+                                                if (libusb_kernel_driver_active(h, intf_desc->bInterfaceNumber) == 1)
+                                                {
+                                                    if (libusb_detach_kernel_driver(h, intf_desc->bInterfaceNumber) != LIBUSB_SUCCESS)
+                                                    {
+                                                        throw std::runtime_error("Failed to open HID device!");
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
                                 libusb_free_device_list(devs, 1);
-                                return fnSupport.second(h);
+                                return fnSupport.second(this, h);
                             }
                             else
                             {
@@ -135,14 +166,37 @@ auto RadioFactory::GetDeviceString(const uint8_t &desc, libusb_device_handle *h)
     unsigned char lang[42], prd[255];
     memset(prd, 0, 255);
 
-    libusb_get_string_descriptor(h, 0, 0, lang, 42);
-    if (0 > (prd_len = libusb_get_string_descriptor(h, desc, lang[2] << 8 | lang[3], prd, 255)))
+    err = libusb_get_string_descriptor(h, 0, 0, lang, 42);
+    if (0 > (prd_len = libusb_get_string_descriptor(h, desc, lang[3] << 8 | lang[2], prd, 255)))
     {
         throw std::runtime_error(libusb_error_name(err));
     }
 
+    if (prd_len >= 255)
+    {
+        return std::wstring(L"UNKNOWN");
+    }
     //Encoded as UTF-16 (LE), Prefixed with length and some other byte.
     typedef std::codecvt_utf16<char16_t, 1114111UL, std::little_endian> cvt;
     auto u16 = std::wstring_convert<cvt, char16_t>().from_bytes((const char *)prd + 2, (const char *)prd + prd_len);
     return std::wstring(u16.begin(), u16.end());
+}
+
+auto RadioFactory::HandleEvents() const -> void
+{
+    std::cerr << "Events tread started: #" << std::this_thread::get_id() << std::endl;
+    while (!shutdown)
+    {
+        auto err = libusb_handle_events(usb_ctx);
+        if (err != LIBUSB_SUCCESS)
+        {
+            if (err != LIBUSB_ERROR_BUSY &&
+                err != LIBUSB_ERROR_TIMEOUT &&
+                err != LIBUSB_ERROR_OVERFLOW &&
+                err != LIBUSB_ERROR_INTERRUPTED)
+            {
+                break;
+            }
+        }
+    }
 }

@@ -57,10 +57,14 @@ set(ALL_SRC
     src/tyt_fw_sgl.cpp
     src/cs_fw.cpp
     src/rdt.cpp
+    src/hid.cpp
+    src/tyt_hid.cpp
+    src/tyt_sgl_radio.cpp
     "${CMAKE_CURRENT_BINARY_DIR}/src/version.cpp"
 )
 
 add_library(radiotool ${ALL_SRC})
+target_link_libraries(radiotool pthread)
 target_include_directories(radiotool PUBLIC include)
 
 add_executable(radio_tool src/radio_tool.cpp)

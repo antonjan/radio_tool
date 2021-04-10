@@ -19,7 +19,6 @@
 
 #include <radio_tool/fw/fw.hpp>
 #include <radio_tool/fw/cipher/sgl.hpp>
-#include <radio_tool/fw/blob/sgl_headers.hpp>
 
 #include <fstream>
 #include <cstring>
@@ -28,22 +27,77 @@
 
 namespace radio_tool::fw
 {
+    class SGLHeader
+    {
+    public:
+        SGLHeader()
+            : sgl_version(1), length(0), radio_group(), radio_model(), protocol_version(), model_key()
+        {
+        }
+
+        SGLHeader(const std::string &group, const std::string &model, const std::string &version = "V1.00.01", const std::string &key = "DV01xxxx")
+            : sgl_version(1), length(0), radio_group(group.begin(), group.end()), radio_model(model.begin(), model.end()), protocol_version(version.begin(), version.end()), model_key()
+        {
+        }
+
+        SGLHeader(const std::vector<uint8_t> &group, const std::vector<uint8_t> &model)
+            : sgl_version(1), length(0), radio_group(group), radio_model(model), protocol_version(), model_key()
+        {
+        }
+
+        SGLHeader(const uint16_t &sgl, const uint32_t &length, const std::vector<uint8_t> &group, const std::vector<uint8_t> &model, const std::vector<uint8_t> &version, const std::vector<uint8_t> &key)
+            : sgl_version(sgl), length(length), radio_group(group), radio_model(model), protocol_version(version), model_key(key)
+        {
+        }
+
+        auto Model() const -> const std::string& 
+        {
+            //DV01 etc
+            return std::string(radio_model.begin(), radio_model.begin() + 4);
+        }
+
+        auto ToString() const -> std::string
+        {
+            std::stringstream ss;
+
+            ss  << "SGL version: " << sgl_version << std::endl
+                << "Length: " << length << std::endl
+                << "Radio Group: " << std::string(radio_group.begin(), radio_group.end()) << std::endl
+                << "Model" << std::string(radio_model.begin(), radio_model.end()) << std::endl
+                << "Protocol Version: " << std::string(protocol_version.begin(), protocol_version.end()) << std::endl
+                << "Key: " << std::string(model_key.begin(), model_key.end());
+
+            return ss.str();
+        }
+
+        auto Serialize(bool encrypt = true) const -> std::vector<uint8_t>;
+
+        const uint16_t sgl_version;
+        const uint32_t length;
+        const std::vector<uint8_t> radio_group; //0x10
+        const std::vector<uint8_t> radio_model; //0x08
+        const std::vector<uint8_t> protocol_version; //0x08
+        const std::vector<uint8_t> model_key; //0x08
+    };
+
     /**
      * Class to store all config for each TYT radio model (SGL firmware)
      */
     class TYTSGLRadioConfig
     {
     public:
-        TYTSGLRadioConfig(const std::string &model, const uint8_t *header, const uint32_t &header_len, const uint8_t *cipher, const uint32_t &cipher_l, const uint16_t &xor_offset, const uint32_t &file_length)
-            : radio_model(model), header(header), header_len(header_len), cipher(cipher), cipher_len(cipher_l), xor_offset(xor_offset), file_length(file_length)
+        TYTSGLRadioConfig(const std::string &model, const SGLHeader &header, const uint8_t *cipher, const uint32_t &cipher_l, const uint16_t &xor_offset)
+            : radio_model(model), header(header), cipher(cipher), cipher_len(cipher_l), xor_offset(xor_offset)
         {
         }
 
-        auto operator==(const TYTSGLRadioConfig &other) const -> bool {
+        auto operator==(const TYTSGLRadioConfig &other) const -> bool
+        {
             return radio_model == other.radio_model;
         }
 
-         auto operator!=(const TYTSGLRadioConfig &other) const -> bool {
+        auto operator!=(const TYTSGLRadioConfig &other) const -> bool
+        {
             return !(*this == other);
         }
 
@@ -53,14 +107,9 @@ namespace radio_tool::fw
         const std::string radio_model;
 
         /**
-         * Static header blob
+         * Decrypted firmware file header
          */
-        const uint8_t *header;
-
-        /**
-         * Length of the static header blob
-         */
-        const uint32_t header_len;
+        const SGLHeader header;
 
         /**
          * The cipher key for encrypting/decrypting the firmware
@@ -78,29 +127,29 @@ namespace radio_tool::fw
         const uint16_t xor_offset;
 
         /**
-         * Length of the firmware file
-         */
-        const uint32_t file_length;
-
-        /**
          * And empty config instance for reference
          */
-        static auto Empty() -> const TYTSGLRadioConfig {
+        static auto Empty() -> const TYTSGLRadioConfig
+        {
             return TYTSGLRadioConfig();
         }
-        private:
-            TYTSGLRadioConfig() 
-                : radio_model(), header(nullptr), header_len(0), cipher(nullptr), cipher_len(0), xor_offset(0), file_length(0) 
-            {}
+
+    private:
+        TYTSGLRadioConfig()
+            : radio_model(), header(), cipher(nullptr), cipher_len(0), xor_offset(0)
+        {
+        }
     };
 
     namespace tyt::config::sgl
     {
+        const std::vector<uint8_t> Magic = {'S', 'G', 'L', '!'};
+
         const std::vector<TYTSGLRadioConfig> All = {
-            TYTSGLRadioConfig("GD77", fw::blob::Header318, fw::blob::Header318_length, fw::cipher::sgl, fw::cipher::sgl_length, 0x807, 0x77001 /* The header, from firmware version 3.1.8 expects the file to be 0x77001 long */),
-            TYTSGLRadioConfig("GD77S", fw::blob::Header120, fw::blob::Header120_length, fw::cipher::sgl, fw::cipher::sgl_length, 0x2a8e, 0x77001 /* The header, from firmware version 1.2.0 expects the file to be 0x50001 long, but it has been hacked to 0x77001 */),
-            TYTSGLRadioConfig("DM1801", fw::blob::Header219, fw::blob::Header219_length, fw::cipher::sgl, fw::cipher::sgl_length, 0x2c7c, 0x78001 /* The header, from firmware version 2.1.9 expects the file to be 0x78001 long */),
-            TYTSGLRadioConfig("RD5R", fw::blob::Header217, fw::blob::Header217_length, fw::cipher::sgl, fw::cipher::sgl_length, 0x306e, 0x78001 /* The header, from firmware version 2.1.7 expects the file to be 0x78001 long */),
+            TYTSGLRadioConfig("GD77", SGLHeader("SG-MD-760", "MD-760", "V1.00.01", "DV01xxx"), fw::cipher::sgl, fw::cipher::sgl_length, 0x807),
+            TYTSGLRadioConfig("GD77S", SGLHeader("SG-MD-730", "MD-730", "V1.00.01", "DV02xxx"), fw::cipher::sgl, fw::cipher::sgl_length, 0x2a8e),
+            TYTSGLRadioConfig("DM1801", SGLHeader("BF-DMR", "1801", "V1.00.01", "DV03xxx"), fw::cipher::sgl, fw::cipher::sgl_length, 0x2c7c),
+            TYTSGLRadioConfig("RD5R", SGLHeader("RD-5R", "RD-5R", "V1.00.01", "DV02xxx"), fw::cipher::sgl, fw::cipher::sgl_length, 0x306e)
         };
     }
 
@@ -134,7 +183,7 @@ namespace radio_tool::fw
         /**
          * Test the file if it matches any known headers
          */
-        static auto DetectFirmware(const std::string &file) -> const TYTSGLRadioConfig*;
+        static auto ReadHeader(const std::string &file) -> const SGLHeader;
 
         /**
          * Create an instance of this class for the firmware factory
@@ -146,8 +195,6 @@ namespace radio_tool::fw
 
     private:
         const TYTSGLRadioConfig *config;
-
-        auto ApplyXOR() -> void;
     };
 
 } // namespace radio_tool::fw
